@@ -9,12 +9,8 @@ import com.querydsl.core.types.dsl.NumberPath
 import com.querydsl.core.types.dsl.SimplePath
 import com.querydsl.core.types.dsl.StringPath
 import com.querydsl.core.types.dsl.TimePath
-import com.squareup.kotlinpoet.ClassName
+import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
-import com.squareup.kotlinpoet.PropertySpec
-import com.squareup.kotlinpoet.TypeName
-import com.squareup.kotlinpoet.asClassName
-import com.squareup.kotlinpoet.asTypeName
 import java.math.BigDecimal
 import java.math.BigInteger
 import java.sql.Blob
@@ -36,134 +32,91 @@ import java.util.Currency
 import java.util.TimeZone
 import kotlin.reflect.KClass
 
-sealed interface SimpleType {
-    val className: ClassName
-    val pathClassName: ClassName
-    val pathTypeName: TypeName
-    fun render(name: String): PropertySpec
+sealed class QPropertySimpleType :  QPropertyType() {
+    override val originalTypeName: TypeName
+        get() = originalClassName
+
 
     class Array(
         private val collectionType: ClassName,
         private val singleType: ClassName
-    ) : SimpleType {
-        override val className = collectionType
+    ) : QPropertySimpleType() {
+        override val originalClassName = collectionType
         override val pathClassName = ArrayPath::class.asClassName()
         override val pathTypeName = ArrayPath::class.asClassName().parameterizedBy(collectionType, singleType)
 
-        override fun render(name: String): PropertySpec {
-            return PropertySpec
-                .builder(name, pathTypeName)
-                .initializer("createArray(\"$name\", ${collectionType}::class.java)")
-                .build()
-        }
+        override fun PropertySpec.Builder.define(name:String) =
+                initializer("createArray(\"$name\", ${collectionType}::class.java)")
     }
 
-    class Simple(private val innerType: ClassName) : SimpleType {
-        override val className = innerType
+    class Simple(override val originalClassName: ClassName) : QPropertySimpleType() {
         override val pathClassName = SimplePath::class.asClassName()
-        override val pathTypeName = SimplePath::class.asClassName().parameterizedBy(innerType)
-
-        override fun render(name: String): PropertySpec {
-            return PropertySpec
-                .builder(name,pathTypeName)
-                .initializer("createSimple(\"$name\", ${innerType}::class.java)")
-                .build()
-        }
+        override val pathTypeName = SimplePath::class.asClassName().parameterizedBy(originalClassName)
+        override fun PropertySpec.Builder.define(name:String) =
+                initializer("createSimple(\"$name\", ${originalClassName}::class.java)")
     }
 
-    class Comparable(private val innerType: ClassName) : SimpleType {
-        override val className = innerType
+    class Comparable(override val originalClassName: ClassName) : QPropertySimpleType() {
         override val pathClassName = ComparablePath::class.asClassName()
-        override val pathTypeName = ComparablePath::class.asClassName().parameterizedBy(innerType)
+        override val pathTypeName = ComparablePath::class.asClassName().parameterizedBy(originalClassName)
 
-        override fun render(name: String): PropertySpec {
-            return PropertySpec
-                .builder(name, pathTypeName)
-                .initializer("createComparable(\"$name\", ${innerType}::class.java)")
-                .build()
-        }
+        override fun PropertySpec.Builder.define(name:String) =
+            initializer("createComparable(\"$name\", ${originalClassName}::class.java)")
     }
 
-    class QNumber(private val innerType: ClassName) : SimpleType {
-        override val className = innerType
+    class QNumber(override val originalClassName: ClassName) : QPropertySimpleType() {
         override val pathClassName = NumberPath::class.asClassName()
-        override val pathTypeName = NumberPath::class.asClassName().parameterizedBy(innerType)
+        override val pathTypeName = NumberPath::class.asClassName().parameterizedBy(originalClassName)
 
-        override fun render(name: String): PropertySpec {
-            return PropertySpec
-                .builder(name, pathTypeName)
-                .initializer("createNumber(\"$name\", ${innerType}::class.javaObjectType)")
-                .build()
-        }
+        override fun PropertySpec.Builder.define(name:String) =
+            initializer("createNumber(\"$name\", ${originalClassName}::class.javaObjectType)")
     }
 
-    class Date(private val innerType: ClassName) : SimpleType {
-        override val className = innerType
+    class Date(override val originalClassName: ClassName) : QPropertySimpleType() {
         override val pathClassName = DatePath::class.asClassName()
-        override val pathTypeName = DatePath::class.asClassName().parameterizedBy(innerType)
+        override val pathTypeName = DatePath::class.asClassName().parameterizedBy(originalClassName)
 
-        override fun render(name: String): PropertySpec {
-            return PropertySpec
-                .builder(name, pathTypeName)
-                .initializer("createDate(\"$name\", ${innerType}::class.java)")
-                .build()
-        }
+        override fun PropertySpec.Builder.define(name:String) =
+            initializer("createDate(\"$name\", ${originalClassName}::class.java)")
+
     }
 
-    class DateTime(private val innerType: ClassName) : SimpleType {
-        override val className = innerType
+    class DateTime(override val originalClassName: ClassName) : QPropertySimpleType() {
         override val pathClassName = DateTimePath::class.asClassName()
-        override val pathTypeName = DateTimePath::class.asClassName().parameterizedBy(innerType)
+        override val pathTypeName = DateTimePath::class.asClassName().parameterizedBy(originalClassName)
 
-        override fun render(name: String): PropertySpec {
-            return PropertySpec
-                .builder(name, pathTypeName)
-                .initializer("createDateTime(\"$name\", ${innerType}::class.java)")
-                .build()
-        }
+        override fun PropertySpec.Builder.define(name:String) =
+            initializer("createDateTime(\"$name\", ${originalClassName}::class.java)")
     }
 
-    class Time(private val innerType: ClassName) : SimpleType {
-        override val className = innerType
+    class Time(override val originalClassName: ClassName) : QPropertySimpleType() {
         override val pathClassName = TimePath::class.asClassName()
-        override val pathTypeName = TimePath::class.asClassName().parameterizedBy(innerType)
+        override val pathTypeName = TimePath::class.asClassName().parameterizedBy(originalClassName)
 
-        override fun render(name: String): PropertySpec {
-            return PropertySpec
-                .builder(name, pathTypeName)
-                .initializer("createTime(\"$name\", ${innerType}::class.java)")
-                .build()
-        }
+        override fun PropertySpec.Builder.define(name:String) =
+            initializer("createTime(\"$name\", ${originalClassName}::class.java)")
     }
 
-    class QString : SimpleType {
-        override val className = String::class.asClassName()
+    class QString : QPropertySimpleType() {
+        override val originalClassName = String::class.asClassName()
         override val pathClassName = StringPath::class.asClassName()
         override val pathTypeName = StringPath::class.asTypeName()
 
-        override fun render(name: String): PropertySpec {
-            return PropertySpec
-                .builder(name, pathTypeName)
-                .initializer("createString(\"$name\")")
-                .build()
-        }
+        override fun PropertySpec.Builder.define(name:String) =
+            initializer("createString(\"$name\")")
     }
 
-    class QBoolean : SimpleType {
-        override val className = Boolean::class.asClassName()
+    class QBoolean : QPropertySimpleType() {
+        override val originalClassName = Boolean::class.asClassName()
         override val pathClassName = BooleanPath::class.asClassName()
         override val pathTypeName = BooleanPath::class.asTypeName()
 
-        override fun render(name: String): PropertySpec {
-            return PropertySpec
-                .builder(name, pathTypeName)
-                .initializer("createBoolean(\"$name\")")
-                .build()
-        }
+        override fun PropertySpec.Builder.define(name:String) =
+            initializer("createBoolean(\"$name\")")
     }
 
     object Mapper {
-        private val typeMap: Map<ClassName, SimpleType> = mutableMapOf<KClass<*>, SimpleType>()
+        private val typeMap: Map<ClassName, QPropertySimpleType> = mutableMapOf<KClass<*>, QPropertySimpleType>()
             .apply {
                 this[Any::class] = Simple(Any::class.asClassName())
                 this[Char::class] = Comparable(Char::class.asClassName())
@@ -212,7 +165,7 @@ sealed interface SimpleType {
             }
             .mapKeys { it.key.asClassName() }
 
-        fun get(className: ClassName): SimpleType? {
+        fun get(className: ClassName): QPropertySimpleType? {
             return typeMap[className]
         }
     }

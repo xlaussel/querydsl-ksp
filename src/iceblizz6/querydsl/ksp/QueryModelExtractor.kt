@@ -111,6 +111,7 @@ class QueryModelExtractor(
             originalClassName = classDeclaration.toClassName(),
             typeParameterCount = classDeclaration.typeParameters.size,
             className = queryClassName(classDeclaration, settings),
+            interfaceName = queryInterfaceName(classDeclaration, settings),
             type = type,
             originatingFile = classDeclaration.containingFile!!
         )
@@ -121,6 +122,12 @@ class QueryModelExtractor(
             return ClassName(
                 "${classDeclaration.packageName.asString()}${settings.packageSuffix}",
                 "${settings.prefix}${classDeclaration.simpleName.asString()}${settings.suffix}"
+            )
+        }
+        fun queryInterfaceName(classDeclaration: KSClassDeclaration, settings: KspSettings): ClassName {
+            return ClassName(
+                "${classDeclaration.packageName.asString()}${settings.packageSuffix}",
+                "${settings.interfacePrefix}${classDeclaration.simpleName.asString()}${settings.interfaceSuffix}"
             )
         }
     }

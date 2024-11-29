@@ -7,6 +7,7 @@ class QueryModel(
     val originalClassName: ClassName,
     val typeParameterCount: Int,
     val className: ClassName,
+    val interfaceName: ClassName,
     val type: QueryModelType,
     val originatingFile: KSFile
 ) {

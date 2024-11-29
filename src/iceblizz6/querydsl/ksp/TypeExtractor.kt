@@ -32,7 +32,7 @@ class TypeExtractor(
         if (declaration is KSTypeParameter) {
             val bounds = declaration.bounds.toList()
             if (bounds.isEmpty()) {
-                return QPropertyType.Simple(SimpleType.Simple(Any::class.asClassName()))
+                return QPropertySimpleType.Simple(Any::class.asClassName())
             } else if (bounds.size == 1) {
                 val boundType = bounds.single().resolve()
                 return extract(boundType)
@@ -44,14 +44,9 @@ class TypeExtractor(
         }
     }
 
-    private fun simpleType(type: KSType): QPropertyType.Simple? {
+    private fun simpleType(type: KSType):QPropertySimpleType? {
         val className = type.toClassName()
-        val simpleType = SimpleType.Mapper.get(className)
-        if (simpleType == null) {
-            return null
-        } else {
-            return QPropertyType.Simple(simpleType)
-        }
+        return QPropertySimpleType.Mapper.get(className)
     }
 
     private fun collectionType(type: KSType): QPropertyType? {

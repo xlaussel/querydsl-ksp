@@ -8,17 +8,25 @@ import com.querydsl.core.types.dsl.SimplePath
 import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 
-sealed interface QPropertyType {
-    val pathTypeName: TypeName
-    val pathClassName: ClassName
-    val originalClassName: ClassName
-    val originalTypeName: TypeName
+sealed class QPropertyType {
+    abstract val pathTypeName: TypeName
+    abstract val pathClassName: ClassName
+    abstract val originalClassName: ClassName
+    abstract val originalTypeName: TypeName
 
-    fun render(name:String) : PropertySpec
+    fun renderAbstract(name: String) : PropertySpec =
+        PropertySpec
+            .builder(name,pathTypeName)
+            .build()
+
+    abstract fun PropertySpec.Builder.define(name:String) : PropertySpec.Builder
+
+    fun render(name:String) : PropertySpec =
+        PropertySpec.builder(name,pathTypeName).define(name).addModifiers(KModifier.OVERRIDE).build()
 
     class ListCollection(
         val innerType: QPropertyType
-    ) : QPropertyType {
+    ) : QPropertyType() {
         override val originalClassName: ClassName
             get() = List::class.asClassName()
 
@@ -31,16 +39,13 @@ sealed interface QPropertyType {
         override val pathTypeName: TypeName
             get() = ListPath::class.asClassName().parameterizedBy(innerType.originalTypeName, innerType.pathTypeName)
 
-        override fun render(name: String): PropertySpec = PropertySpec
-            .builder(name, ListPath::class.asClassName().parameterizedBy(innerType.originalTypeName, innerType.pathTypeName))
-            .initializer("createList(\"$name\", ${innerType.originalClassName}::class.java, ${innerType.pathClassName}::class.java, null)")
-            .build()
-
+        override fun PropertySpec.Builder.define(name:String) =
+            initializer("createList(\"$name\", ${innerType.originalClassName}::class.java, ${innerType.pathClassName}::class.java, null)")
     }
 
     class SetCollection(
         val innerType: QPropertyType
-    ) : QPropertyType {
+    ) : QPropertyType() {
         override val originalClassName: ClassName
             get() = Set::class.asClassName()
 
@@ -53,16 +58,14 @@ sealed interface QPropertyType {
         override val pathTypeName: TypeName
             get() = SetPath::class.asClassName().parameterizedBy(innerType.originalTypeName, innerType.pathTypeName)
 
-        override fun render(name: String): PropertySpec = PropertySpec
-            .builder(name, SetPath::class.asClassName().parameterizedBy(innerType.originalTypeName, innerType.pathTypeName))
-            .initializer("createSet(\"$name\", ${innerType.originalClassName}::class.java, ${innerType.pathClassName}::class.java, null)")
-            .build()
+        override fun PropertySpec.Builder.define(name:String) =
+            initializer("createSet(\"$name\", ${innerType.originalClassName}::class.java, ${innerType.pathClassName}::class.java, null)")
     }
 
     class MapCollection(
         val keyType: QPropertyType,
         val valueType: QPropertyType
-    ) : QPropertyType {
+    ) : QPropertyType() {
         override val originalClassName: ClassName
             get() = Map::class.asClassName()
 
@@ -75,35 +78,14 @@ sealed interface QPropertyType {
         override val pathTypeName: TypeName
             get() = MapPath::class.asTypeName().parameterizedBy(keyType.originalTypeName, valueType.originalTypeName, valueType.pathTypeName)
 
-        override fun render(name: String): PropertySpec = PropertySpec
-            .builder(name, MapPath::class.asClassName().parameterizedBy(keyType.originalTypeName, valueType.originalTypeName, valueType.pathTypeName))
-            .initializer("createMap(\"$name\", ${keyType.originalClassName}::class.java, ${valueType.originalClassName}::class.java, ${valueType.pathClassName}::class.java)")
-            .build()
-    }
-
-    class Simple(
-        val type: SimpleType
-    ) : QPropertyType {
-        override val originalClassName: ClassName
-            get() = type.className
-
-        override val originalTypeName: TypeName
-            get() = type.className
-
-        override val pathClassName: ClassName
-            get() = type.pathClassName
-
-        override val pathTypeName: TypeName
-            get() = type.pathTypeName
-
-        override fun render(name: String): PropertySpec = type.render(name)
-
+        override fun PropertySpec.Builder.define(name:String) =
+            initializer("createMap(\"$name\", ${keyType.originalClassName}::class.java, ${valueType.originalClassName}::class.java, ${valueType.pathClassName}::class.java)")
     }
 
     class Unknown(
         private val innerClassName: ClassName,
         private val innerTypeName: TypeName
-    ) : QPropertyType {
+    ) : QPropertyType() {
         override val originalClassName: ClassName
             get() = innerClassName
 
@@ -116,16 +98,14 @@ sealed interface QPropertyType {
         override val pathTypeName: TypeName
             get() = SimplePath::class.asTypeName().parameterizedBy(innerTypeName)
 
-        override fun render(name: String): PropertySpec= PropertySpec
-            .builder(name, SimplePath::class.asClassName().parameterizedBy(originalTypeName))
-            .initializer("createSimple(\"$name\", ${originalClassName}::class.java)")
-            .build()
+        override fun PropertySpec.Builder.define(name:String) =
+            initializer("createSimple(\"$name\", ${originalClassName}::class.java)")
 
     }
 
     class EnumReference(
         val enumClassName: ClassName
-    ) : QPropertyType {
+    ) : QPropertyType() {
         override val originalClassName: ClassName
             get() = enumClassName
 
@@ -138,17 +118,15 @@ sealed interface QPropertyType {
         override val pathTypeName: TypeName
             get() = EnumPath::class.asTypeName().parameterizedBy(enumClassName)
 
-        override fun render(name: String): PropertySpec = PropertySpec
-                .builder(name, EnumPath::class.asClassName().parameterizedBy(enumClassName))
-                .initializer("createEnum(\"${name}\", ${enumClassName}::class.java)")
-                .build()
+        override fun PropertySpec.Builder.define(name:String) =
+            initializer("createEnum(\"${name}\", ${enumClassName}::class.java)")
     }
 
     class ObjectReference(
         val entityClassName: ClassName,
         val queryClassName: ClassName,
         val typeArgs: List<TypeName>
-    ) : QPropertyType {
+    ) : QPropertyType() {
         override val originalClassName: ClassName
             get() = entityClassName
 
@@ -167,15 +145,13 @@ sealed interface QPropertyType {
         override val pathTypeName: TypeName
             get() = queryClassName
 
-        override fun render(name: String): PropertySpec =PropertySpec
-            .builder(name, queryClassName)
-            .delegate(
+        override fun PropertySpec.Builder.define(name:String) =
+            delegate(
                 CodeBlock.builder()
                     .beginControlFlow("lazy")
                     .addStatement("${queryClassName}(forProperty(\"${name}\"))")
                     .endControlFlow()
                     .build()
             )
-            .build()
     }
 }

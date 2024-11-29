@@ -8,23 +8,35 @@ import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import iceblizz6.querydsl.ksp.Naming.toCamelCase
 
 object QueryModelRenderer {
-    fun render(model: QueryModel): TypeSpec {
+
+    fun renderClass(model: QueryModel): TypeSpec {
         return TypeSpec.classBuilder(model.className)
             .setEntitySuperclass(model)
             .addSuperProperty(model)
+            .primaryConstructor(model)
+            .addEntitySuperInterfaces(model)
             .addProperties(model)
+            .constructorForTypeMetadata(model)
             .constructorForPath(model)
             .constructorForMetadata(model)
             .constructorForVariable(model)
-            .constructorForTypeMetadata(model)
             .addInitializerCompanionObject(model)
-            .addInheritedProperties(model)
             .build()
     }
 
-    private fun TypeSpec.Builder.setEntitySuperclass(model: QueryModel): TypeSpec.Builder {
+    fun renderInterface(model: QueryModel): TypeSpec {
+        return TypeSpec
+            .classBuilder(model.interfaceName)
+            .apply {
+                model.superclass?.run {  addSuperinterface(interfaceName) }
+                model.properties.forEach(QProperty::renderAbstract)
+            }
+            .build()
+    }
+
+    private fun TypeSpec.Builder.setEntitySuperclass(model: QueryModel): TypeSpec.Builder = run {
         val constraint: TypeName = if (model.typeParameterCount > 0) {
-            val typeParams = (0..<model.typeParameterCount).map { STAR }
+            val typeParams = List(model.typeParameterCount) { STAR }
             model.originalClassName.parameterizedBy(typeParams)
         } else {
             model.originalClassName
@@ -35,64 +47,55 @@ object QueryModelRenderer {
                 QueryModelType.EMBEDDABLE -> BeanPath::class.asClassName().parameterizedBy(constraint)
             }
         )
+        addSuperclassConstructorParameter("type,metadata")
         return this
     }
 
-    private fun TypeSpec.Builder.addSuperProperty(model: QueryModel): TypeSpec.Builder {
+    private fun TypeSpec.Builder.addEntitySuperInterfaces(model: QueryModel) : TypeSpec.Builder = apply {
+        addSuperinterface(model.interfaceName)
+        model.superclass?.run {
+            addSuperinterface(interfaceName,"_super")
+        }
+    }
+
+    private fun TypeSpec.Builder.addSuperProperty(model: QueryModel): TypeSpec.Builder = apply {
         model.superclass?.let { superclass ->
             val superProperty = PropertySpec
-                .builder("_super", superclass.className)
-                .delegate(
-                    CodeBlock.builder()
-                        .beginControlFlow("lazy")
-                        .addStatement("${superclass.className}(this)")
-                        .endControlFlow()
-                        .build()
-                )
+                .builder("_super", ClassName(superclass.className.packageName,superclass.className.simpleName))
+                .initializer("_super")
                 .build()
             addProperty(superProperty)
         }
-        return this
     }
 
-    private fun TypeSpec.Builder.addProperties(model: QueryModel): TypeSpec.Builder {
-        model.properties
-            .map { renderProperty(it) }
-            .forEach { addProperty(it) }
-        return this
+
+    private fun TypeSpec.Builder.addProperties(model: QueryModel): TypeSpec.Builder = apply {
+        model.properties.forEach(QProperty::render)
     }
 
-    private fun TypeSpec.Builder.addInheritedProperties(model: QueryModel): TypeSpec.Builder {
-        model.superclass?.let { superclass ->
-            superclass.properties
-                .map { renderInheritedProperty(it) }
-                .forEach { addProperty(it) }
-            addInheritedProperties(superclass)
+    private fun TypeSpec.Builder.primaryConstructor(model: QueryModel): TypeSpec.Builder = apply {
+        val source = model.originalClassName.run {
+            if (model.typeParameterCount > 0) parameterizedBy(List(model.typeParameterCount) { STAR })
+            else this
         }
-        return this
-    }
-
-    private fun renderInheritedProperty(property: QProperty): PropertySpec {
-        return PropertySpec.builder(property.name, property.type.pathTypeName)
-            .getter(
-                FunSpec.getterBuilder()
-                    .addCode("return _super.${property.name}")
-                    .build()
-            )
+        val spec = FunSpec.constructorBuilder()
+            .apply {if (model.superclass!=null) addModifiers(KModifier.PRIVATE) }
+            .addParameter("type", Class::class.asClassName().parameterizedBy(WildcardTypeName.producerOf(source)))
+            .addParameter("metadata", PathMetadata::class)
+            .apply {
+                model.superclass?.run {
+                    addParameter(
+                        ParameterSpec
+                            .builder("_super", className)
+                            .defaultValue("${className}(type,metadata)").build()
+                    )
+                }
+            }
             .build()
+        primaryConstructor(spec)
     }
 
-    private fun renderProperty(property: QProperty): PropertySpec {
-        val name = property.name
-        val type = property.type
-        return when (type) {
-            is QPropertyType.Simple -> property.type.type.render(name)
-
-        }
-    }
-
-
-    private fun TypeSpec.Builder.constructorForPath(model: QueryModel): TypeSpec.Builder {
+    private fun TypeSpec.Builder.constructorForPath(model: QueryModel): TypeSpec.Builder = apply {
         if (model.typeParameterCount > 0) {
             val typeParams = (0..<model.typeParameterCount).map { STAR }
             val source = model.originalClassName.parameterizedBy(typeParams)
@@ -109,20 +112,18 @@ object QueryModelRenderer {
                 .build()
             addFunction(spec)
         }
-        return this
     }
 
-    private fun TypeSpec.Builder.constructorForMetadata(model: QueryModel): TypeSpec.Builder {
+    private fun TypeSpec.Builder.constructorForMetadata(model: QueryModel): TypeSpec.Builder = run {
         val source = model.originalClassName
         val spec = FunSpec.constructorBuilder()
             .addParameter("metadata", PathMetadata::class)
             .callSuperConstructor("$source::class.java, metadata")
             .build()
         addFunction(spec)
-        return this
     }
 
-    private fun TypeSpec.Builder.constructorForVariable(model: QueryModel): TypeSpec.Builder {
+    private fun TypeSpec.Builder.constructorForVariable(model: QueryModel): TypeSpec.Builder = run {
         val spec = FunSpec.constructorBuilder()
             .addParameter("variable", String::class)
             .callSuperConstructor(
@@ -131,10 +132,10 @@ object QueryModelRenderer {
             )
             .build()
         addFunction(spec)
-        return this
     }
 
-    private fun TypeSpec.Builder.constructorForTypeMetadata(model: QueryModel): TypeSpec.Builder {
+
+    private fun TypeSpec.Builder.constructorForTypeMetadata(model: QueryModel): TypeSpec.Builder= run {
         if (model.typeParameterCount > 0) {
             val typeParams = (0..<model.typeParameterCount).map { STAR }
             val source = model.originalClassName.parameterizedBy(typeParams)
@@ -153,10 +154,9 @@ object QueryModelRenderer {
                 .build()
             addFunction(spec)
         }
-        return this
     }
 
-    private fun TypeSpec.Builder.addInitializerCompanionObject(model: QueryModel): TypeSpec.Builder {
+    private fun TypeSpec.Builder.addInitializerCompanionObject(model: QueryModel): TypeSpec.Builder = run {
         val source = model.originalClassName
         val qSource = model.className
         val name = source.simpleName.toCamelCase()
@@ -169,6 +169,5 @@ object QueryModelRenderer {
             )
             .build()
         addType(companionObject)
-        return this
     }
 }

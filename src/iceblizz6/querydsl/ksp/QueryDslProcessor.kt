@@ -28,10 +28,10 @@ class QueryDslProcessor(
     override fun finish() {
         val models = typeProcessor.process()
         models.forEach { model ->
-            val typeSpec = QueryModelRenderer.render(model)
             FileSpec.builder(model.className)
                 .indent(settings.indent)
-                .addType(typeSpec)
+                .addType(QueryModelRenderer.renderInterface(model))
+                .addType(QueryModelRenderer.renderClass(model))
                 .build()
                 .writeTo(
                     codeGenerator = codeGenerator,
