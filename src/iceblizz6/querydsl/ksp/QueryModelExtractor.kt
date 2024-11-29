@@ -8,6 +8,7 @@ import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.asClassName
 import com.squareup.kotlinpoet.ksp.toClassName
 import jakarta.persistence.Transient
+import kotlin.streams.asStream
 
 class QueryModelExtractor(
     private val settings: KspSettings
@@ -70,9 +71,8 @@ class QueryModelExtractor(
     private fun extractProperties(declaration: KSClassDeclaration): List<QProperty> {
         return declaration
             .getDeclaredProperties()
-            .filter { !it.isTransient() }
-            .filter { !it.isGetterTransient() }
-            .filter { it.hasBackingField }
+            .asStream()
+            .filter { !it.isTransient() && !it.isGetterTransient() && it.hasBackingField }
             .map { property ->
                 val propName = property.simpleName.asString()
                 val extractor = TypeExtractor(settings, property)

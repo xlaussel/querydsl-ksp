@@ -5,17 +5,16 @@ import com.querydsl.core.types.dsl.ListPath
 import com.querydsl.core.types.dsl.MapPath
 import com.querydsl.core.types.dsl.SetPath
 import com.querydsl.core.types.dsl.SimplePath
-import com.squareup.kotlinpoet.ClassName
+import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
-import com.squareup.kotlinpoet.TypeName
-import com.squareup.kotlinpoet.asClassName
-import com.squareup.kotlinpoet.asTypeName
 
 sealed interface QPropertyType {
     val pathTypeName: TypeName
     val pathClassName: ClassName
     val originalClassName: ClassName
     val originalTypeName: TypeName
+
+    fun render(name:String) : PropertySpec
 
     class ListCollection(
         val innerType: QPropertyType
@@ -31,6 +30,12 @@ sealed interface QPropertyType {
 
         override val pathTypeName: TypeName
             get() = ListPath::class.asClassName().parameterizedBy(innerType.originalTypeName, innerType.pathTypeName)
+
+        override fun render(name: String): PropertySpec = PropertySpec
+            .builder(name, ListPath::class.asClassName().parameterizedBy(innerType.originalTypeName, innerType.pathTypeName))
+            .initializer("createList(\"$name\", ${innerType.originalClassName}::class.java, ${innerType.pathClassName}::class.java, null)")
+            .build()
+
     }
 
     class SetCollection(
@@ -47,6 +52,11 @@ sealed interface QPropertyType {
 
         override val pathTypeName: TypeName
             get() = SetPath::class.asClassName().parameterizedBy(innerType.originalTypeName, innerType.pathTypeName)
+
+        override fun render(name: String): PropertySpec = PropertySpec
+            .builder(name, SetPath::class.asClassName().parameterizedBy(innerType.originalTypeName, innerType.pathTypeName))
+            .initializer("createSet(\"$name\", ${innerType.originalClassName}::class.java, ${innerType.pathClassName}::class.java, null)")
+            .build()
     }
 
     class MapCollection(
@@ -64,6 +74,11 @@ sealed interface QPropertyType {
 
         override val pathTypeName: TypeName
             get() = MapPath::class.asTypeName().parameterizedBy(keyType.originalTypeName, valueType.originalTypeName, valueType.pathTypeName)
+
+        override fun render(name: String): PropertySpec = PropertySpec
+            .builder(name, MapPath::class.asClassName().parameterizedBy(keyType.originalTypeName, valueType.originalTypeName, valueType.pathTypeName))
+            .initializer("createMap(\"$name\", ${keyType.originalClassName}::class.java, ${valueType.originalClassName}::class.java, ${valueType.pathClassName}::class.java)")
+            .build()
     }
 
     class Simple(
@@ -80,6 +95,9 @@ sealed interface QPropertyType {
 
         override val pathTypeName: TypeName
             get() = type.pathTypeName
+
+        override fun render(name: String): PropertySpec = type.render(name)
+
     }
 
     class Unknown(
@@ -97,6 +115,12 @@ sealed interface QPropertyType {
 
         override val pathTypeName: TypeName
             get() = SimplePath::class.asTypeName().parameterizedBy(innerTypeName)
+
+        override fun render(name: String): PropertySpec= PropertySpec
+            .builder(name, SimplePath::class.asClassName().parameterizedBy(originalTypeName))
+            .initializer("createSimple(\"$name\", ${originalClassName}::class.java)")
+            .build()
+
     }
 
     class EnumReference(
@@ -113,6 +137,11 @@ sealed interface QPropertyType {
 
         override val pathTypeName: TypeName
             get() = EnumPath::class.asTypeName().parameterizedBy(enumClassName)
+
+        override fun render(name: String): PropertySpec = PropertySpec
+                .builder(name, EnumPath::class.asClassName().parameterizedBy(enumClassName))
+                .initializer("createEnum(\"${name}\", ${enumClassName}::class.java)")
+                .build()
     }
 
     class ObjectReference(
@@ -137,5 +166,16 @@ sealed interface QPropertyType {
 
         override val pathTypeName: TypeName
             get() = queryClassName
+
+        override fun render(name: String): PropertySpec =PropertySpec
+            .builder(name, queryClassName)
+            .delegate(
+                CodeBlock.builder()
+                    .beginControlFlow("lazy")
+                    .addStatement("${queryClassName}(forProperty(\"${name}\"))")
+                    .endControlFlow()
+                    .build()
+            )
+            .build()
     }
 }

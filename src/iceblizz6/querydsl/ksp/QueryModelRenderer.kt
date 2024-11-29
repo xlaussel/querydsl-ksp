@@ -87,60 +87,10 @@ object QueryModelRenderer {
         val type = property.type
         return when (type) {
             is QPropertyType.Simple -> property.type.type.render(name)
-            is QPropertyType.EnumReference -> renderEnumReference(name, type)
-            is QPropertyType.ObjectReference -> renderObjectReference(name, type)
-            is QPropertyType.Unknown -> renderUnknownProperty(name, type)
-            is QPropertyType.ListCollection -> {
-                val inner = type.innerType
-                PropertySpec
-                    .builder(name, ListPath::class.asClassName().parameterizedBy(inner.originalTypeName, inner.pathTypeName))
-                    .initializer("createList(\"$name\", ${inner.originalClassName}::class.java, ${inner.pathClassName}::class.java, null)")
-                    .build()
-            }
-            is QPropertyType.MapCollection -> {
-                val keyType = type.keyType
-                val valueType = type.valueType
-                PropertySpec
-                    .builder(name, MapPath::class.asClassName().parameterizedBy(keyType.originalTypeName, valueType.originalTypeName, valueType.pathTypeName))
-                    .initializer("createMap(\"$name\", ${keyType.originalClassName}::class.java, ${valueType.originalClassName}::class.java, ${valueType.pathClassName}::class.java)")
-                    .build()
-            }
-            is QPropertyType.SetCollection -> {
-                val inner = type.innerType
-                PropertySpec
-                    .builder(name, SetPath::class.asClassName().parameterizedBy(inner.originalTypeName, inner.pathTypeName))
-                    .initializer("createSet(\"$name\", ${inner.originalClassName}::class.java, ${inner.pathClassName}::class.java, null)")
-                    .build()
-            }
+
         }
     }
 
-    private fun renderUnknownProperty(name: String, type: QPropertyType.Unknown) : PropertySpec {
-        return PropertySpec
-            .builder(name, SimplePath::class.asClassName().parameterizedBy(type.originalTypeName))
-            .initializer("createSimple(\"$name\", ${type.originalClassName}::class.java)")
-            .build()
-    }
-
-    private fun renderEnumReference(name: String, type: QPropertyType.EnumReference): PropertySpec {
-        return PropertySpec
-            .builder(name, EnumPath::class.asClassName().parameterizedBy(type.enumClassName))
-            .initializer("createEnum(\"${name}\", ${type.enumClassName}::class.java)")
-            .build()
-    }
-
-    private fun renderObjectReference(name: String, type: QPropertyType.ObjectReference): PropertySpec {
-        return PropertySpec
-            .builder(name, type.queryClassName)
-            .delegate(
-                CodeBlock.builder()
-                    .beginControlFlow("lazy")
-                    .addStatement("${type.queryClassName}(forProperty(\"${name}\"))")
-                    .endControlFlow()
-                    .build()
-            )
-            .build()
-    }
 
     private fun TypeSpec.Builder.constructorForPath(model: QueryModel): TypeSpec.Builder {
         if (model.typeParameterCount > 0) {
