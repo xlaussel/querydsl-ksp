@@ -56,21 +56,21 @@ class TypeExtractor(
         if (declaration is KSClassDeclaration) {
             types.addAll(declaration.getAllSuperTypes())
         }
-        val classNames = types.map { it.toClassName() }
-        return if (classNames.any { it.isMap() }) {
+        val classNames = types.map(KSType::toClassName)
+        return if (classNames.any(ClassName::isMap)) {
             assertTypeArgCount(type, "map", 2)
             val keyType = extract(type.arguments[0].type!!.resolve())
             val valueType = extract(type.arguments[1].type!!.resolve())
             QPropertyType.MapCollection(keyType, valueType)
-        } else if (classNames.any { it.isList() }) {
+        } else if (classNames.any(ClassName::isList)) {
             assertTypeArgCount(type, "list", 1)
             val innerType = extract(type.arguments.single().type!!.resolve())
             QPropertyType.ListCollection(innerType)
-        } else if (classNames.any { it.isSet() }) {
+        } else if (classNames.any(ClassName::isSet)) {
             assertTypeArgCount(type, "set", 1)
             val innerType = extract(type.arguments.single().type!!.resolve())
             return QPropertyType.SetCollection(innerType)
-        } else if (classNames.any { it.isArray() }) {
+        } else if (classNames.any(ClassName::isArray)) {
             throwError("Unable to process type Array, Consider using List or Set instead")
         } else {
             null

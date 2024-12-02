@@ -22,19 +22,18 @@ class QueryModelExtractor(
             .model
     }
 
-    fun add(classDeclaration: KSClassDeclaration): QueryModel {
-        return lookupOrInsert(classDeclaration) {
+    fun add(classDeclaration: KSClassDeclaration): QueryModel =
+        lookupOrInsert(classDeclaration) {
             addNew(
                 classDeclaration,
                 QueryModelType.autodetect(classDeclaration)
                     ?: error("Unable to resolve type of entity for ${classDeclaration.qualifiedName!!.asString()}")
             )
         }.model
-    }
 
     fun process(): List<QueryModel> {
         processProperties()
-        return processed.values.map { it.model }
+        return processed.values.map(ModelDeclaration::model)
     }
 
     private fun lookupOrInsert(classDeclaration: KSClassDeclaration, create: () -> QueryModel): ModelDeclaration {
@@ -62,12 +61,11 @@ class QueryModelExtractor(
         return queryModel
     }
 
-    private fun processProperties() {
-        processed.values.map { modelDeclaration ->
+    private fun processProperties() =
+        processed.values.forEach { modelDeclaration ->
             val properties = extractProperties(modelDeclaration.declaration)
             modelDeclaration.model.properties.addAll(properties)
         }
-    }
 
     private fun extractProperties(declaration: KSClassDeclaration): List<QProperty> {
         return declaration

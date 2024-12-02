@@ -26,7 +26,7 @@ object QueryModelRenderer {
 
     fun renderInterface(model: QueryModel): TypeSpec {
         return TypeSpec
-            .classBuilder(model.interfaceName)
+            .interfaceBuilder(model.interfaceName)
             .apply {
                 model.superclass?.run {  addSuperinterface(interfaceName) }
                 model.properties.forEach(QProperty::renderAbstract)
