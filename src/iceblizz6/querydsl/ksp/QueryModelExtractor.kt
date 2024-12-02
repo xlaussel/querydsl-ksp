@@ -8,6 +8,7 @@ import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.asClassName
 import com.squareup.kotlinpoet.ksp.toClassName
 import jakarta.persistence.Transient
+import java.util.stream.Collectors
 import kotlin.streams.asStream
 
 class QueryModelExtractor(
@@ -79,7 +80,7 @@ class QueryModelExtractor(
                 val type = extractor.extract(property.type.resolve())
                 QProperty(propName, type)
             }
-            .toList()
+            .collect(Collectors.toList())
     }
 
     private fun KSPropertyDeclaration.isTransient(): Boolean {
