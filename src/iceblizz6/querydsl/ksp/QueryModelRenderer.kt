@@ -26,7 +26,7 @@ object QueryModelRenderer {
         return TypeSpec
             .interfaceBuilder(model.interfaceName)
             .apply {
-                model.superclass?.run {  addSuperinterface(interfaceName) }
+                model.superclass?.run { addSuperinterface(interfaceName) }
                 model.properties.forEach { addProperty(it.renderAbstract()) }
             }
             .build()
