@@ -1,10 +1,6 @@
 package iceblizz6.querydsl.ksp
 
-import com.querydsl.core.types.dsl.EnumPath
-import com.querydsl.core.types.dsl.ListPath
-import com.querydsl.core.types.dsl.MapPath
-import com.querydsl.core.types.dsl.SetPath
-import com.querydsl.core.types.dsl.SimplePath
+import com.querydsl.core.types.dsl.*
 import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 

@@ -1,14 +1,6 @@
 package iceblizz6.querydsl.ksp
 
-import com.querydsl.core.types.dsl.ArrayPath
-import com.querydsl.core.types.dsl.BooleanPath
-import com.querydsl.core.types.dsl.ComparablePath
-import com.querydsl.core.types.dsl.DatePath
-import com.querydsl.core.types.dsl.DateTimePath
-import com.querydsl.core.types.dsl.NumberPath
-import com.querydsl.core.types.dsl.SimplePath
-import com.querydsl.core.types.dsl.StringPath
-import com.querydsl.core.types.dsl.TimePath
+import com.querydsl.core.types.dsl.*
 import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import java.math.BigDecimal
@@ -16,19 +8,10 @@ import java.math.BigInteger
 import java.sql.Blob
 import java.sql.Clob
 import java.sql.NClob
-import java.time.Duration
-import java.time.Instant
-import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.LocalTime
-import java.time.OffsetDateTime
-import java.time.Year
-import java.time.ZoneId
-import java.time.ZoneOffset
-import java.time.ZonedDateTime
-import java.util.Locale
+import java.time.*
 import java.util.Calendar
 import java.util.Currency
+import java.util.Locale
 import java.util.TimeZone
 import kotlin.reflect.KClass
 

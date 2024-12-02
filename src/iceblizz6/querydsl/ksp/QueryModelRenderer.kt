@@ -1,7 +1,9 @@
 package iceblizz6.querydsl.ksp
 
+import com.querydsl.core.types.Path
 import com.querydsl.core.types.PathMetadata
-import com.querydsl.core.types.dsl.*
+import com.querydsl.core.types.dsl.BeanPath
+import com.querydsl.core.types.dsl.EntityPathBase
 import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import iceblizz6.querydsl.ksp.Naming.toCamelCase
@@ -31,6 +33,14 @@ object QueryModelRenderer {
             }
             .build()
     }
+
+    private val QueryModel.constraint
+        get() =
+            if (typeParameterCount > 0)
+                originalClassName.parameterizedBy(List(typeParameterCount) { STAR })
+            else
+                originalClassName
+
 
     private fun TypeSpec.Builder.setEntitySuperclass(model: QueryModel)  {
         superclass(
@@ -65,7 +75,7 @@ object QueryModelRenderer {
     private fun TypeSpec.Builder.addPrimaryConstructor(model: QueryModel) {
         val spec = FunSpec.constructorBuilder()
             .apply {if (model.superclass!=null) addModifiers(KModifier.PRIVATE) }
-            .addParameter("type", model.parametrizedTypeName)
+            .addParameter("type", Class::class.asClassName().parameterizedBy(WildcardTypeName.producerOf(model.constraint)))
             .addParameter("metadata", PathMetadata::class)
             .apply {
                 model.superclass?.run {
@@ -82,7 +92,7 @@ object QueryModelRenderer {
 
     private fun TypeSpec.Builder.constructorForPath(model: QueryModel) =
             addFunction(FunSpec.constructorBuilder()
-                .addParameter("path", model.parametrizedTypeName)
+                .addParameter("path", Path::class.asClassName().parameterizedBy(WildcardTypeName.producerOf(model.constraint)))
                 .callThisConstructor("path.type, path.metadata")
                 .build())
 
@@ -110,7 +120,7 @@ object QueryModelRenderer {
     private fun TypeSpec.Builder.constructorForTypeMetadata(model: QueryModel) {
         if (model.superclass==null) return
         val spec = FunSpec.constructorBuilder()
-            .addParameter("type", model.parametrizedTypeName)
+            .addParameter("type", Class::class.asClassName().parameterizedBy(WildcardTypeName.producerOf(model.constraint)))
             .addParameter("metadata", PathMetadata::class)
             .callThisConstructor("type, metadata")
             .build()
