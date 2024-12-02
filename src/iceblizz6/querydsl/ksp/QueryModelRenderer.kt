@@ -122,7 +122,9 @@ object QueryModelRenderer {
         val spec = FunSpec.constructorBuilder()
             .addParameter("type", Class::class.asClassName().parameterizedBy(WildcardTypeName.producerOf(model.constraint)))
             .addParameter("metadata", PathMetadata::class)
-            .callThisConstructor("type, metadata")
+            .callThisConstructor(
+                if (model.superclass==null) "type, metadata"
+                else "type, metadata, ${model.superclass!!.className}(type,metadata)")
             .build()
         addFunction(spec)
     }
